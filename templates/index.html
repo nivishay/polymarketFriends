@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FriendMarket</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <main class="shell">
+        <section class="hero card">
+            <div>
+                <p class="eyebrow">Private friend market</p>
+                <h1>Bet simple yes-or-no questions with your group.</h1>
+                <p class="intro">Create a question, set one fixed buy-in, share an invite link, and settle the pot when the result is known. This version uses internal balances only, not real payment rails.</p>
+            </div>
+            <div class="hero-stats">
+                <div>
+                    <span class="stat-label">Starter balance</span>
+                    <strong>${{ '%.2f'|format(starting_balance) }}</strong>
+                </div>
+                <div>
+                    <span class="stat-label">Question type</span>
+                    <strong>YES / NO</strong>
+                </div>
+                <div>
+                    <span class="stat-label">Settlement</span>
+                    <strong>Winner-takes-pot</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="account-grid">
+            {% if g.user %}
+                <article class="card account-card">
+                    <div>
+                        <p class="eyebrow">Logged in</p>
+                        <h2>{{ g.user.name }}</h2>
+                        <p class="account-meta">@{{ g.user.username }} · Balance ${{ '%.2f'|format(g.user.balance) }}</p>
+                    </div>
+                    <form method="post" action="{{ url_for('logout_route') }}">
+                        <button type="submit" class="secondary-button">Log out</button>
+                    </form>
+                </article>
+            {% else %}
+                <div class="auth-grid">
+                    <form class="card form-card compact-form" method="post" action="{{ url_for('register_route') }}">
+                        <h2>Create account</h2>
+                        <label>
+                            <span>Name</span>
+                            <input type="text" name="display_name" placeholder="Nivi" required>
+                        </label>
+                        <label>
+                            <span>Username</span>
+                            <input type="text" name="username" placeholder="nivi" required>
+                        </label>
+                        <label>
+                            <span>Password</span>
+                            <input type="password" name="password" placeholder="Create a password" required>
+                        </label>
+                        <button type="submit">Create account</button>
+                    </form>
+
+                    <form class="card form-card compact-form" method="post" action="{{ url_for('login_route') }}">
+                        <h2>Log in</h2>
+                        <label>
+                            <span>Username</span>
+                            <input type="text" name="username" placeholder="nivi" required>
+                        </label>
+                        <label>
+                            <span>Password</span>
+                            <input type="password" name="password" placeholder="Your password" required>
+                        </label>
+                        <button type="submit">Log in</button>
+                    </form>
+                </div>
+            {% endif %}
+        </section>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <section class="flash-stack">
+                    {% for category, message in messages %}
+                        <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </section>
+            {% endif %}
+        {% endwith %}
+
+        {% if selected_market %}
+            <section class="card invite-card">
+                <div>
+                    <p class="eyebrow">Invite link</p>
+                    <h2>{{ selected_market.market.question }}</h2>
+                    <p class="account-meta">Code {{ selected_market.market.code }} · Buy-in ${{ '%.2f'|format(selected_market.market.entry_price) }}</p>
+                </div>
+                <div class="invite-panel">
+                    <input type="text" value="{{ invite_url }}" readonly>
+                    <a class="link-button" href="{{ invite_url }}">Open link</a>
+                </div>
+            </section>
+        {% endif %}
+
+        <section class="actions-grid">
+            <form class="card form-card" method="post" action="{{ url_for('create_market_route') }}">
+                <h2>Create a market</h2>
+                <label>
+                    <span>Question</span>
+                    <input type="text" name="question" placeholder="Will Arsenal win on Saturday?" required>
+                </label>
+                <label>
+                    <span>Buy-in price</span>
+                    <input type="number" name="entry_price" step="0.01" min="0.01" placeholder="25" required>
+                </label>
+                <label>
+                    <span>Your side</span>
+                    <select name="creator_side" required>
+                        <option value="YES">YES</option>
+                        <option value="NO">NO</option>
+                    </select>
+                </label>
+                <button type="submit">Create and join</button>
+            </form>
+
+            <form class="card form-card" method="post" action="{{ url_for('join_market_route') }}">
+                <h2>Join with a code</h2>
+                <label>
+                    <span>Market code</span>
+                    <input type="text" name="market_code" placeholder="AB12CD" value="{{ selected_market.market.code if selected_market else '' }}" required>
+                </label>
+                <label>
+                    <span>Your side</span>
+                    <select name="side" required>
+                        <option value="YES">YES</option>
+                        <option value="NO">NO</option>
+                    </select>
+                </label>
+                <button type="submit">Join market</button>
+            </form>
+
+            <form class="card form-card" method="post" action="{{ url_for('resolve_market_route') }}">
+                <h2>Resolve a market</h2>
+                <label>
+                    <span>Market</span>
+                    <select name="market_id" required>
+                        {% for card in market_cards if card.market.status == 'open' %}
+                            <option value="{{ card.market.id }}">{{ card.market.code }} · {{ card.market.question }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>
+                    <span>Winning outcome</span>
+                    <select name="outcome" required>
+                        <option value="YES">YES</option>
+                        <option value="NO">NO</option>
+                    </select>
+                </label>
+                <button type="submit">Resolve and pay out</button>
+            </form>
+        </section>
+
+        <section class="content-grid">
+            <section class="card ledger-card">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">Balances</p>
+                        <h2>Friend ledger</h2>
+                    </div>
+                </div>
+                <div class="ledger-list">
+                    {% if players %}
+                        {% for player in players %}
+                            <article class="ledger-row">
+                                <span>{{ player.name }}</span>
+                                <strong>${{ '%.2f'|format(player.balance) }}</strong>
+                            </article>
+                        {% endfor %}
+                    {% else %}
+                        <p class="empty-state">No players yet. Create the first market to seed balances.</p>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="markets-column">
+                {% for card in market_cards %}
+                    <article class="card market-card {{ card.market.status }}">
+                        <div class="market-topline">
+                            <span class="code">{{ card.market.code }}</span>
+                            <span class="pill {{ card.market.status }}">{{ card.market.status }}</span>
+                        </div>
+                        <h3>{{ card.market.question }}</h3>
+                        <p class="market-meta">Created by {{ card.market.creator_name }} · Buy-in ${{ '%.2f'|format(card.market.entry_price) }} · Pot ${{ '%.2f'|format(card.total_pot) }}</p>
+                        <div class="invite-row">
+                            <a class="link-button" href="{{ url_for('market_detail', market_code=card.market.code) }}">Invite page</a>
+                        </div>
+                        <div class="split">
+                            <div>
+                                <span class="stat-label">YES picks</span>
+                                <strong>{{ card.yes_count }}</strong>
+                            </div>
+                            <div>
+                                <span class="stat-label">NO picks</span>
+                                <strong>{{ card.no_count }}</strong>
+                            </div>
+                            {% if card.market.status == 'resolved' %}
+                                <div>
+                                    <span class="stat-label">Result</span>
+                                    <strong>{{ card.market.resolved_outcome }}</strong>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="participant-list">
+                            {% for position in card.positions %}
+                                <div class="participant-row">
+                                    <span>{{ position.player_name }} · {{ position.side }}</span>
+                                    {% if card.market.status == 'resolved' %}
+                                        <strong>${{ '%.2f'|format(position.payout) }}</strong>
+                                    {% else %}
+                                        <strong>${{ '%.2f'|format(position.stake) }}</strong>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </article>
+                {% else %}
+                    <article class="card market-card empty-card">
+                        <h3>No markets yet</h3>
+                        <p>Create the first yes/no question and share the generated code with your friends.</p>
+                    </article>
+                {% endfor %}
+            </section>
+        </section>
+    </main>
+</body>
+</html>
