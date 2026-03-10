@@ -18,7 +18,9 @@ YES_NO_CHOICES = {"YES", "NO"}
 
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "local-dev-secret")
+secret_key = os.environ.get("SECRET_KEY") or "local-dev-secret"
+app.config["SECRET_KEY"] = secret_key
+app.secret_key = secret_key
 
 
 def get_db() -> sqlite3.Connection:
