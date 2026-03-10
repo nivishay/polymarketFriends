@@ -12,7 +12,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DATABASE_PATH = BASE_DIR / "markets.db"
+DATABASE_PATH = Path(os.environ.get("DATABASE_PATH", BASE_DIR / "markets.db"))
 STARTING_BALANCE = 1000.0
 YES_NO_CHOICES = {"YES", "NO"}
 
@@ -36,6 +36,7 @@ def close_db(_error: Exception | None) -> None:
 
 
 def init_db() -> None:
+    DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
     database = sqlite3.connect(DATABASE_PATH)
     cursor = database.cursor()
     cursor.executescript(
